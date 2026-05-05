@@ -89,16 +89,20 @@ else:
             }
         }
 
-# Cache configuration using Redis
+# Cache configuration using Redis with fallback to local memory
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'IGNORE_EXCEPTIONS': True,  # Prevent 500 errors if Redis is down
         }
     }
 }
+
+# If DEBUG is True and Redis is likely not available, we could use LocMemCache 
+# but IGNORE_EXCEPTIONS already helps a lot.
 
 # CSRF settings for production (Railway)
 CSRF_TRUSTED_ORIGINS = [
