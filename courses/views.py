@@ -24,8 +24,12 @@ def _solo_administrativo(request):
 @permission_classes([IsAuthenticated])
 def materias_list(request):
     if request.method == 'GET':
-        materias = Materia.objects.filter(estado=True)
-        return Response(MateriaSerializer(materias, many=True).data)
+        from rest_framework.pagination import PageNumberPagination
+        paginator = PageNumberPagination()
+        materias = Materia.objects.filter(estado=True).select_related('curso', 'docente__user').order_by('id')
+        result_page = paginator.paginate_queryset(materias, request)
+        serializer = MateriaSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
     serializer = MateriaSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()

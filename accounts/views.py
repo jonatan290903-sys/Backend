@@ -21,22 +21,26 @@ def mis_materias(request):
     if user.role == 'docente':
         try:
             docente = Docente.objects.get(user=user)
-            materias = Materia.objects.filter(docente=docente, estado=True)
+            materias = Materia.objects.filter(docente=docente, estado=True).select_related('curso', 'docente__user')
         except Docente.DoesNotExist:
             materias = Materia.objects.none()
     elif user.role == 'estudiante':
         try:
             estudiante = Estudiante.objects.get(user=user)
             if estudiante.curso:
-                materias = Materia.objects.filter(curso=estudiante.curso, estado=True)
+                materias = Materia.objects.filter(curso=estudiante.curso, estado=True).select_related('curso', 'docente__user')
             else:
                 materias = Materia.objects.none()
         except Estudiante.DoesNotExist:
             materias = Materia.objects.none()
     else:
-        materias = Materia.objects.filter(estado=True)
+        materias = Materia.objects.filter(estado=True).select_related('curso', 'docente__user')
 
-    return Response(MateriaSerializer(materias, many=True).data)
+    from rest_framework.pagination import PageNumberPagination
+    paginator = PageNumberPagination()
+    result_page = paginator.paginate_queryset(materias, request)
+    serializer = MateriaSerializer(result_page, many=True)
+    return paginator.get_paginated_response(serializer.data)
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -127,7 +131,12 @@ def logout(request):
 @permission_classes([IsAuthenticated])
 def cursos_list(request):
     if request.method == 'GET':
-        return Response(CursoSerializer(Curso.objects.filter(estado=True), many=True).data)
+        from rest_framework.pagination import PageNumberPagination
+        paginator = PageNumberPagination()
+        qs = Curso.objects.filter(estado=True).order_by('id')
+        result_page = paginator.paginate_queryset(qs, request)
+        serializer = CursoSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
     serializer = CursoSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
@@ -161,14 +170,19 @@ def curso_detail(request, pk):
 @permission_classes([IsAuthenticated])
 def estudiantes_list(request):
     if request.method == 'GET':
-        qs = Estudiante.objects.select_related('user', 'curso').all()
+        from rest_framework.pagination import PageNumberPagination
+        paginator = PageNumberPagination()
+        qs = Estudiante.objects.select_related('user', 'curso').all().order_by('id')
         estado = request.query_params.get('estado')
         curso_id = request.query_params.get('curso')
         if estado:
             qs = qs.filter(estado=estado)
         if curso_id:
             qs = qs.filter(curso_id=curso_id)
-        return Response(EstudianteSerializer(qs, many=True).data)
+        
+        result_page = paginator.paginate_queryset(qs, request)
+        serializer = EstudianteSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
     serializer = EstudianteSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
@@ -202,8 +216,13 @@ def estudiante_detail(request, pk):
 @permission_classes([IsAuthenticated])
 def docentes_list(request):
     if request.method == 'GET':
-        qs = Docente.objects.select_related('user').filter(estado='activo')
-        return Response(DocenteSerializer(qs, many=True).data)
+        from rest_framework.pagination import PageNumberPagination
+        paginator = PageNumberPagination()
+        qs = Docente.objects.select_related('user').filter(estado='activo').order_by('id')
+        
+        result_page = paginator.paginate_queryset(qs, request)
+        serializer = DocenteSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
     serializer = DocenteSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
