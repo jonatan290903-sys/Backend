@@ -108,6 +108,7 @@ CACHES = {
 CSRF_TRUSTED_ORIGINS = [
     'https://*.railway.app',
     'https://*.up.railway.app',
+    'https://sistema-gestion-escolar2.vercel.app',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -134,8 +135,11 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = os.getenv(
     'CORS_ALLOWED_ORIGINS',
-    'http://localhost:3000,http://localhost:8000'
+    'http://localhost:3000,http://localhost:8000,https://sistema-gestion-escolar2.vercel.app'
 ).split(',')
+
+# Enable CORS for all origins if you prefer, or rely on the specific list above
+CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'False') == 'True'
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
