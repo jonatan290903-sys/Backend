@@ -75,7 +75,7 @@ if DB_ENGINE == 'django.db.backends.sqlite3':
     }
 else:
     import dj_database_url
-    db_from_env = dj_database_url.config(conn_max_age=None)
+    db_from_env = dj_database_url.config(conn_max_age=0)
     if db_from_env:
         DATABASES = {'default': db_from_env}
     else:

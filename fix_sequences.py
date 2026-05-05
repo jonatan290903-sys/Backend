@@ -49,6 +49,9 @@ def reset_all_sequences():
         print("Todos los contadores de ID han sido actualizados al valor máximo actual.")
     except Exception as e:
         print(f"Error durante el reset: {e}")
+    finally:
+        connection.close()
+        print("Conexión de sincronización cerrada.")
 
 if __name__ == "__main__":
     reset_all_sequences()
