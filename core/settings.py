@@ -11,7 +11,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-m#wn7ut_3ay7tcx4pzcuq))#)3
 
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,.railway.app').split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -74,12 +74,19 @@ if DB_ENGINE == 'django.db.backends.sqlite3':
     }
 else:
     import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=os.getenv('DATABASE_URL'),
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    }
 
-    # Override DB config if DATABASE_URL is provided (Railway)
-    if os.getenv('DATABASE_URL'):
-        DATABASES = {
-            'default': dj_database_url.parse(os.getenv('DATABASE_URL'), conn_max_age=600)
-        }
+# CSRF settings for production (Railway)
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.railway.app',
+    'https://*.up.railway.app',
+]
 
 AUTH_USER_MODEL = 'accounts.User'
 
