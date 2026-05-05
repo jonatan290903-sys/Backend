@@ -2,7 +2,9 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.core.cache import cache
 from .models import User, Curso, Estudiante, Docente
 from .serializers import (
     RegisterSerializer, LoginSerializer, UserSerializer,
@@ -162,15 +164,26 @@ def curso_detail(request, pk):
 @permission_classes([IsAuthenticated])
 def estudiantes_list(request):
     if request.method == 'GET':
-        qs = Estudiante.objects.select_related('user', 'curso').all().order_by('id')
         estado = request.query_params.get('estado')
         curso_id = request.query_params.get('curso')
+        
+        # Intentar obtener de cache si no hay filtros específicos
+        if not estado and not curso_id:
+            cache_key = 'estudiantes_list_all'
+            # (Opcional: implementar lógica de cache más granular)
+
+        qs = Estudiante.objects.select_related('user', 'curso').all().order_by('user__last_name', 'user__first_name')
         if estado:
             qs = qs.filter(estado=estado)
         if curso_id:
             qs = qs.filter(curso_id=curso_id)
         
-        return Response(EstudianteSerializer(qs[:300], many=True).data)
+        paginator = PageNumberPagination()
+        paginator.page_size = 50
+        result_page = paginator.paginate_queryset(qs, request)
+        serializer = EstudianteSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
     serializer = EstudianteSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
@@ -204,8 +217,13 @@ def estudiante_detail(request, pk):
 @permission_classes([IsAuthenticated])
 def docentes_list(request):
     if request.method == 'GET':
-        qs = Docente.objects.select_related('user').filter(estado='activo').order_by('id')
-        return Response(DocenteSerializer(qs[:300], many=True).data)
+        qs = Docente.objects.select_related('user').filter(estado='activo').order_by('user__last_name', 'user__first_name')
+        paginator = PageNumberPagination()
+        paginator.page_size = 50
+        result_page = paginator.paginate_queryset(qs, request)
+        serializer = DocenteSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
     serializer = DocenteSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()

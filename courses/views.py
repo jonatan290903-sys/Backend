@@ -2,6 +2,9 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.core.cache import cache
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from .models import Materia, Inscripcion, Actividad, Calificacion, Asistencia, HorarioCurso, PeriodoHorario, ClaseHorario
 from .serializers import (
     MateriaSerializer, InscripcionSerializer, ActividadSerializer,
@@ -24,8 +27,13 @@ def _solo_administrativo(request):
 @permission_classes([IsAuthenticated])
 def materias_list(request):
     if request.method == 'GET':
-        materias = Materia.objects.filter(estado=True).select_related('curso', 'docente__user').order_by('id')
-        return Response(MateriaSerializer(materias[:300], many=True).data)
+        cache_key = 'materias_list_all'
+        data = cache.get(cache_key)
+        if not data:
+            materias = Materia.objects.filter(estado=True).select_related('curso', 'docente__user').order_by('id')
+            data = MateriaSerializer(materias[:500], many=True).data
+            cache.set(cache_key, data, 300)  # Cache for 5 minutes
+        return Response(data)
     serializer = MateriaSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
@@ -252,20 +260,25 @@ def centro_notas(request, pk):
         except Estudiante.DoesNotExist:
             estudiantes = Estudiante.objects.none()
 
-    calificaciones = Calificacion.objects.filter(actividad__in=actividades).values_list('estudiante_id', 'actividad_id', 'nota')
-    cal_map = {(c[0], c[1]): c[2] for c in calificaciones}
+    calificaciones = Calificacion.objects.filter(actividad__in=actividades).values('estudiante_id', 'actividad_id', 'nota')
+    cal_map = {}
+    for c in calificaciones:
+        if c['estudiante_id'] not in cal_map:
+            cal_map[c['estudiante_id']] = {}
+        cal_map[c['estudiante_id']][str(c['actividad_id'])] = c['nota']
 
+    actividades_data = ActividadSerializer(actividades, many=True).data
+    
     filas = []
     for e in estudiantes:
-        notas = {str(a.id): cal_map.get((e.id, a.id)) for a in actividades}
         filas.append({
             'estudiante_id': e.id,
             'nombre': f"{e.user.first_name} {e.user.last_name}",
-            'notas': notas,
+            'notas': cal_map.get(e.id, {}),
         })
 
     return Response({
-        'actividades': ActividadSerializer(actividades, many=True).data,
+        'actividades': actividades_data,
         'filas': filas,
     })
 
@@ -328,19 +341,28 @@ def registrar_asistencia_bulk(request, pk):
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    # Optimizamos usando update_or_create pero reduciendo queries si es posible, 
-    # o simplemente procesando el loop de forma más limpia.
-    resultado = []
+    # Optimizamos usando bulk_create con update_conflicts (PostgreSQL 9.5+)
+    nuevas_asistencias = []
     for r in serializer.validated_data:
-        obj, _ = AsistenciaModel.objects.update_or_create(
+        nuevas_asistencias.append(AsistenciaModel(
             estudiante_id=r['estudiante'],
             materia=materia,
             fecha=fecha,
-            defaults={'estado': r['estado'], 'motivo': r.get('motivo', ''), 'registrada_por': request.user},
-        )
-        resultado.append(AsistenciaSerializer(obj).data)
+            estado=r['estado'],
+            motivo=r.get('motivo', ''),
+            registrada_por=request.user
+        ))
 
-    return Response(resultado, status=status.HTTP_200_OK)
+    AsistenciaModel.objects.bulk_create(
+        nuevas_asistencias,
+        update_conflicts=True,
+        unique_fields=['estudiante', 'materia', 'fecha'],
+        update_fields=['estado', 'motivo', 'registrada_por']
+    )
+
+    # Devolvemos el resultado actualizado
+    qs = AsistenciaModel.objects.filter(materia=materia, fecha=fecha).select_related('estudiante__user')
+    return Response(AsistenciaSerializer(qs, many=True).data, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])

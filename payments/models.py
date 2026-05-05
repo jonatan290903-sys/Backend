@@ -22,10 +22,10 @@ class Pago(models.Model):
 
     estudiante = models.ForeignKey(Estudiante, on_delete=models.CASCADE, related_name='pagos')
     monto = models.DecimalField(max_digits=10, decimal_places=2)
-    concepto = models.CharField(max_length=20, choices=CONCEPTO_CHOICES)
-    fecha_vencimiento = models.DateField()
+    concepto = models.CharField(max_length=20, choices=CONCEPTO_CHOICES, db_index=True)
+    fecha_vencimiento = models.DateField(db_index=True)
     fecha_pago = models.DateField(null=True, blank=True)
-    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente', db_index=True)
     numero_comprobante = models.CharField(max_length=50, blank=True)
     metodo_pago = models.CharField(max_length=50, blank=True)
     referencia_pago = models.CharField(max_length=100, blank=True)

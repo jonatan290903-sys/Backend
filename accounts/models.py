@@ -12,7 +12,7 @@ class User(AbstractUser):
     )
 
     email = models.EmailField(unique=True)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='estudiante')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='estudiante', db_index=True)
     phone = models.CharField(max_length=20, blank=True)
     address = models.TextField(blank=True)
     profile_image = models.ImageField(upload_to='profiles/', null=True, blank=True)
@@ -59,7 +59,7 @@ class Estudiante(models.Model):
     documento = models.CharField(max_length=20, unique=True)
     fecha_nacimiento = models.DateField()
     curso = models.ForeignKey(Curso, on_delete=models.SET_NULL, null=True, blank=True, related_name='estudiantes')
-    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='activo')
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='activo', db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -77,7 +77,7 @@ class Docente(models.Model):
     especialidad = models.CharField(max_length=100)
     titulo_profesional = models.CharField(max_length=200)
     fecha_contratacion = models.DateField()
-    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='activo')
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='activo', db_index=True)
 
     def __str__(self):
         return f"Prof. {self.user.get_full_name()}"

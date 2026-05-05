@@ -10,7 +10,7 @@ class Materia(models.Model):
     descripcion = models.TextField(blank=True)
     numero_horas = models.IntegerField()
     creditos = models.IntegerField(default=0)
-    estado = models.BooleanField(default=True)
+    estado = models.BooleanField(default=True, db_index=True)
 
     class Meta:
         unique_together = ('nombre', 'curso')
@@ -29,7 +29,7 @@ class Inscripcion(models.Model):
     estudiante = models.ForeignKey(Estudiante, on_delete=models.CASCADE, related_name='inscripciones')
     curso = models.ForeignKey(Curso, on_delete=models.CASCADE, related_name='inscripciones')
     fecha_inscripcion = models.DateTimeField(auto_now_add=True)
-    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='activo')
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='activo', db_index=True)
     registrada_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='inscripciones_registradas')
 
     class Meta:
@@ -64,8 +64,8 @@ class Actividad(models.Model):
     nombre = models.CharField(max_length=200)
     descripcion = models.TextField(blank=True)
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='tarea')
-    trimestre = models.CharField(max_length=2, choices=TRIMESTRE_CHOICES, default='T1')
-    fecha = models.DateField(null=True, blank=True)
+    trimestre = models.CharField(max_length=2, choices=TRIMESTRE_CHOICES, default='T1', db_index=True)
+    fecha = models.DateField(null=True, blank=True, db_index=True)
     ponderacion = models.FloatField(default=0)
     es_plantilla = models.BooleanField(default=False)
     creada_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='actividades')
@@ -98,8 +98,8 @@ class Asistencia(models.Model):
 
     estudiante = models.ForeignKey(Estudiante, on_delete=models.CASCADE, related_name='asistencias')
     materia = models.ForeignKey(Materia, on_delete=models.CASCADE, related_name='asistencias')
-    fecha = models.DateField()
-    estado = models.CharField(max_length=1, choices=ESTADO_CHOICES, default='P')
+    fecha = models.DateField(db_index=True)
+    estado = models.CharField(max_length=1, choices=ESTADO_CHOICES, default='P', db_index=True)
     motivo = models.TextField(blank=True)
     registrada_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='asistencias_registradas')
     fecha_registro = models.DateTimeField(auto_now_add=True)

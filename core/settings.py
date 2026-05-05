@@ -36,6 +36,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'django.middleware.gzip.GZipMiddleware',  # Added for response compression
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -75,7 +76,8 @@ if DB_ENGINE == 'django.db.backends.sqlite3':
     }
 else:
     import dj_database_url
-    db_from_env = dj_database_url.config(conn_max_age=0)
+    # Increased conn_max_age to 600 for connection pooling
+    db_from_env = dj_database_url.config(conn_max_age=600, conn_health_checks=True)
     if db_from_env:
         DATABASES = {'default': db_from_env}
     else:
@@ -86,6 +88,17 @@ else:
                 'NAME': BASE_DIR / 'db.sqlite3',
             }
         }
+
+# Cache configuration using Redis
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
 
 # CSRF settings for production (Railway)
 CSRF_TRUSTED_ORIGINS = [

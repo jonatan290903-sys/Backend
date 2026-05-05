@@ -2,6 +2,8 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
+from django.core.cache import cache
 from .models import Pago
 from .serializers import PagoSerializer
 
@@ -10,7 +12,7 @@ from .serializers import PagoSerializer
 @permission_classes([IsAuthenticated])
 def pagos_list(request):
     if request.method == 'GET':
-        qs = Pago.objects.select_related('estudiante__user').all()
+        qs = Pago.objects.select_related('estudiante__user').all().order_by('-fecha_vencimiento')
         estudiante_id = request.query_params.get('estudiante')
         estado = request.query_params.get('estado')
         concepto = request.query_params.get('concepto')
@@ -20,7 +22,12 @@ def pagos_list(request):
             qs = qs.filter(estado=estado)
         if concepto:
             qs = qs.filter(concepto=concepto)
-        return Response(PagoSerializer(qs, many=True).data)
+            
+        paginator = PageNumberPagination()
+        paginator.page_size = 50
+        result_page = paginator.paginate_queryset(qs, request)
+        serializer = PagoSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
     serializer = PagoSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
@@ -51,7 +58,15 @@ def pago_detail(request, pk):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def resumen_pagos(request):
-    from django.db.models import Sum, Count
-    total = Pago.objects.aggregate(total=Sum('monto'))['total'] or 0
-    por_estado = Pago.objects.values('estado').annotate(cantidad=Count('id'), monto_total=Sum('monto'))
-    return Response({'total_monto': total, 'por_estado': list(por_estado)})
+    cache_key = 'payments_summary'
+    data = cache.get(cache_key)
+    if not data:
+        from django.db.models import Sum, Count
+        total = Pago.objects.aggregate(total=Sum('monto'))['total'] or 0
+        por_estado = Pago.objects.values('estado').annotate(cantidad=Count('id'), monto_total=Sum('monto'))
+        data = {
+            'total_monto': float(total),
+            'por_estado': list(por_estado)
+        }
+        cache.set(cache_key, data, 600)  # Cache for 10 minutes
+    return Response(data)
