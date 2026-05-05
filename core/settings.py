@@ -73,11 +73,13 @@ if DB_ENGINE == 'django.db.backends.sqlite3':
         }
     }
 else:
-import dj_database_url
+    import dj_database_url
 
-# Override DB config if DATABASE_URL is provided (Railway)
-if os.getenv('DATABASE_URL'):
-    DATABASES['default'] = dj_database_url.parse(os.getenv('DATABASE_URL'), conn_max_age=600)
+    # Override DB config if DATABASE_URL is provided (Railway)
+    if os.getenv('DATABASE_URL'):
+        DATABASES = {
+            'default': dj_database_url.parse(os.getenv('DATABASE_URL'), conn_max_age=600)
+        }
 
 AUTH_USER_MODEL = 'accounts.User'
 
