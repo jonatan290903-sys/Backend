@@ -252,8 +252,8 @@ def centro_notas(request, pk):
         except Estudiante.DoesNotExist:
             estudiantes = Estudiante.objects.none()
 
-    calificaciones = Calificacion.objects.filter(actividad__in=actividades)
-    cal_map = {(c.estudiante_id, c.actividad_id): c.nota for c in calificaciones}
+    calificaciones = Calificacion.objects.filter(actividad__in=actividades).values_list('estudiante_id', 'actividad_id', 'nota')
+    cal_map = {(c[0], c[1]): c[2] for c in calificaciones}
 
     filas = []
     for e in estudiantes:
@@ -316,6 +316,8 @@ def registrar_asistencia_bulk(request, pk):
     except Materia.DoesNotExist:
         return Response({'error': 'Materia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
 
+    from .models import Asistencia as AsistenciaModel
+    
     fecha = request.data.get('fecha')
     registros = request.data.get('registros', [])
 
@@ -326,14 +328,12 @@ def registrar_asistencia_bulk(request, pk):
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    # Optimizamos usando update_or_create pero reduciendo queries si es posible, 
+    # o simplemente procesando el loop de forma más limpia.
     resultado = []
     for r in serializer.validated_data:
-        try:
-            estudiante = Estudiante.objects.get(pk=r['estudiante'])
-        except Estudiante.DoesNotExist:
-            continue
-        obj, _ = Asistencia.objects.update_or_create(
-            estudiante=estudiante,
+        obj, _ = AsistenciaModel.objects.update_or_create(
+            estudiante_id=r['estudiante'],
             materia=materia,
             fecha=fecha,
             defaults={'estado': r['estado'], 'motivo': r.get('motivo', ''), 'registrada_por': request.user},
@@ -361,17 +361,30 @@ def resumen_asistencia(request, pk):
         except Estudiante.DoesNotExist:
             estudiantes = Estudiante.objects.none()
 
+    from django.db.models import Count, Q
+    
     resultado = []
+    # Obtenemos estadísticas de una sola vez para todos los estudiantes
+    stats = Asistencia.objects.filter(
+        materia=materia, 
+        estudiante__in=estudiantes
+    ).values('estudiante_id').annotate(
+        presentes=Count('id', filter=Q(estado='P')),
+        faltas=Count('id', filter=Q(estado='F')),
+        licencias=Count('id', filter=Q(estado='L')),
+    )
+    
+    # Mapeamos para acceso rápido
+    stats_map = {s['estudiante_id']: s for s in stats}
+
     for e in estudiantes:
-        faltas = Asistencia.objects.filter(estudiante=e, materia=materia, estado='F').count()
-        licencias = Asistencia.objects.filter(estudiante=e, materia=materia, estado='L').count()
-        presentes = Asistencia.objects.filter(estudiante=e, materia=materia, estado='P').count()
+        s = stats_map.get(e.id, {'presentes': 0, 'faltas': 0, 'licencias': 0})
         resultado.append({
             'estudiante_id': e.id,
             'nombre': f"{e.user.first_name} {e.user.last_name}",
-            'presentes': presentes,
-            'faltas': faltas,
-            'licencias': licencias,
+            'presentes': s['presentes'],
+            'faltas': s['faltas'],
+            'licencias': s['licencias'],
         })
     return Response(resultado)
 
@@ -587,8 +600,8 @@ def exportar_notas(request, pk):
     )
 
     cal_map = {
-        (c.estudiante_id, c.actividad_id): c.nota
-        for c in Calificacion.objects.filter(actividad__in=actividades)
+        (c[0], c[1]): c[2]
+        for c in Calificacion.objects.filter(actividad__in=actividades).values_list('estudiante_id', 'actividad_id', 'nota')
     }
 
     wb = openpyxl.Workbook()
