@@ -135,7 +135,7 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = os.getenv(
     'CORS_ALLOWED_ORIGINS',
-    'http://localhost:3000,http://localhost:8000,https://sistema-gestion-escolar2.vercel.app'
+    'http://localhost:3000,http://localhost:8000,https://sistema-gestion-escolar.vercel.app'
 ).split(',')
 
 # Enable CORS for all origins if you prefer, or rely on the specific list above
