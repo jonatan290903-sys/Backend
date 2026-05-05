@@ -108,7 +108,7 @@ CACHES = {
 CSRF_TRUSTED_ORIGINS = [
     'https://*.railway.app',
     'https://*.up.railway.app',
-    'https://sistema-gestion-escolar2.vercel.app',
+    'https://sistema-gestion-escolar.vercel.app',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
