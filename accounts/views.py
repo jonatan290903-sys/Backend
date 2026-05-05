@@ -55,15 +55,18 @@ def register(request):
 @permission_classes([AllowAny])
 def login(request):
     from django.contrib.auth import authenticate
+    print(f"DEBUG: Intento de login con datos: {request.data}")
     serializer = LoginSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.validated_data['user']
+        print(f"DEBUG: Login exitoso para usuario: {user.email}")
         refresh = RefreshToken.for_user(user)
         return Response({
             'access': str(refresh.access_token),
             'refresh': str(refresh),
             'user': UserSerializer(user).data,
         })
+    print(f"DEBUG: Errores de validación en login: {serializer.errors}")
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
