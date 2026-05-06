@@ -130,25 +130,48 @@ def logout(request):
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+def get_active_period(request):
+    """Devuelve el periodo (nombre del año) activo: query param o el año marcado como activo."""
+    periodo = request.query_params.get('periodo')
+    if periodo:
+        return periodo
+    from accounts.models import AnioAcademico
+    anio_activo = AnioAcademico.objects.filter(activo=True).first()
+    return anio_activo.nombre if anio_activo else None
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def dashboard_stats(request):
-    """Devuelve las estadísticas generales del dashboard administrativo."""
-    cache_key = 'dashboard_stats_admin'
+    """Devuelve las estadísticas del dashboard filtradas por el año académico activo."""
+    from courses.models import Materia
+    from payments.models import Pago
+
+    periodo = get_active_period(request)
+    cache_key = f'dashboard_stats_{periodo}'
     data = cache.get(cache_key)
-    if not data:
-        from accounts.models import Estudiante, Docente
-        from courses.models import Materia
-        from payments.models import Pago
-        
-        data = {
-            'estudiantes': Estudiante.objects.filter(estado='activo').count(),
-            'docentes': Docente.objects.filter(estado='activo').count(),
-            'materias': Materia.objects.filter(estado=True).count(),
-            'pagos': Pago.objects.count(),
-            'pagosPendientes': Pago.objects.filter(estado__in=['pendiente', 'vencido']).count(),
-        }
-        cache.set(cache_key, data, 600)  # 10 minutes cache
+    if data:
+        return Response(data)
+
+    if periodo:
+        q_estudiantes = Estudiante.objects.filter(estado='activo', curso__periodo=periodo).count()
+        q_materias = Materia.objects.filter(estado=True, curso__periodo=periodo).count()
+        q_pagos = Pago.objects.filter(estudiante__curso__periodo=periodo).count()
+        q_pendientes = Pago.objects.filter(estado__in=['pendiente', 'vencido'], estudiante__curso__periodo=periodo).count()
+    else:
+        q_estudiantes = Estudiante.objects.filter(estado='activo').count()
+        q_materias = Materia.objects.filter(estado=True).count()
+        q_pagos = Pago.objects.count()
+        q_pendientes = Pago.objects.filter(estado__in=['pendiente', 'vencido']).count()
+
+    data = {
+        'estudiantes': q_estudiantes,
+        'docentes': Docente.objects.filter(estado='activo').count(),
+        'materias': q_materias,
+        'pagos': q_pagos,
+        'pagosPendientes': q_pendientes,
+    }
+    cache.set(cache_key, data, 600)
     return Response(data)
 
 
@@ -158,8 +181,11 @@ def dashboard_stats(request):
 @permission_classes([IsAuthenticated])
 def cursos_list(request):
     if request.method == 'GET':
-        qs = Curso.objects.filter(estado=True).order_by('id')
-        return Response(CursoSerializer(qs[:300], many=True).data)
+        qs = Curso.objects.filter(estado=True).order_by('nivel', 'nombre')
+        periodo = get_active_period(request)
+        if periodo:
+            qs = qs.filter(periodo=periodo)
+        return Response(CursoSerializer(qs, many=True).data)
     serializer = CursoSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
@@ -196,8 +222,9 @@ def estudiantes_list(request):
         estado = request.query_params.get('estado')
         curso_id = request.query_params.get('curso')
         page = request.query_params.get('page', 1)
+        periodo = get_active_period(request)
         
-        cache_key = f'estudiantes_list_{estado}_{curso_id}_{page}'
+        cache_key = f'estudiantes_list_{estado}_{curso_id}_{page}_{periodo}'
         data = cache.get(cache_key)
         if data:
             return Response(data)
@@ -207,6 +234,8 @@ def estudiantes_list(request):
             qs = qs.filter(estado=estado)
         if curso_id:
             qs = qs.filter(curso_id=curso_id)
+        if periodo:
+            qs = qs.filter(curso__periodo=periodo)
         
         paginator = PageNumberPagination()
         paginator.page_size = 50
@@ -289,3 +318,87 @@ def docente_detail(request, pk):
     docente.estado = 'inactivo'
     docente.save()
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── Sistema y Configuración ────────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def system_config(request):
+    """Devuelve la configuración global (Año activo y trimestres)."""
+    from accounts.models import AnioAcademico
+    from accounts.serializers import AnioAcademicoSerializer
+    from django.utils import timezone
+    
+    anio_activo = AnioAcademico.objects.filter(activo=True).first()
+    if not anio_activo:
+        return Response({'error': 'No hay un año académico activo.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    data = AnioAcademicoSerializer(anio_activo).data
+    
+    hoy = timezone.now().date()
+    trimestre_actual = 'T1'
+    for trim in data.get('trimestres', []):
+        if trim['fecha_inicio'] <= str(hoy) <= trim['fecha_fin']:
+            trimestre_actual = trim['nombre']
+            break
+            
+    data['trimestre_actual'] = trimestre_actual
+    return Response(data)
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def anios_list(request):
+    from accounts.models import AnioAcademico, ConfiguracionTrimestre
+    from accounts.serializers import AnioAcademicoSerializer
+    
+    if request.method == 'GET':
+        qs = AnioAcademico.objects.all()
+        return Response(AnioAcademicoSerializer(qs, many=True).data)
+        
+    serializer = AnioAcademicoSerializer(data=request.data)
+    if serializer.is_valid():
+        anio = serializer.save()
+        trimestres_data = request.data.get('trimestres', [])
+        for t in trimestres_data:
+            ConfiguracionTrimestre.objects.create(
+                anio=anio,
+                nombre=t.get('nombre'),
+                fecha_inicio=t.get('fecha_inicio'),
+                fecha_fin=t.get('fecha_fin')
+            )
+        return Response(AnioAcademicoSerializer(anio).data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def anio_detail(request, pk):
+    from accounts.models import AnioAcademico, ConfiguracionTrimestre
+    from accounts.serializers import AnioAcademicoSerializer
+    
+    try:
+        anio = AnioAcademico.objects.get(pk=pk)
+    except AnioAcademico.DoesNotExist:
+        return Response({'error': 'Año no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        
+    if request.method == 'GET':
+        return Response(AnioAcademicoSerializer(anio).data)
+    elif request.method == 'PUT':
+        serializer = AnioAcademicoSerializer(anio, data=request.data, partial=True)
+        if serializer.is_valid():
+            anio = serializer.save()
+            trimestres_data = request.data.get('trimestres', [])
+            if trimestres_data:
+                ConfiguracionTrimestre.objects.filter(anio=anio).delete()
+                for t in trimestres_data:
+                    ConfiguracionTrimestre.objects.create(
+                        anio=anio,
+                        nombre=t.get('nombre'),
+                        fecha_inicio=t.get('fecha_inicio'),
+                        fecha_fin=t.get('fecha_fin')
+                    )
+            return Response(AnioAcademicoSerializer(anio).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    elif request.method == 'DELETE':
+        anio.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

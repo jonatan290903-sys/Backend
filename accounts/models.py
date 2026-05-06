@@ -81,3 +81,44 @@ class Docente(models.Model):
 
     def __str__(self):
         return f"Prof. {self.user.get_full_name()}"
+
+
+class AnioAcademico(models.Model):
+    nombre = models.CharField(max_length=20, unique=True)
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    activo = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['-nombre']
+    
+    def save(self, *args, **kwargs):
+        if self.activo:
+            # Desactivar todos los demás si este es activado
+            if self.pk:
+                AnioAcademico.objects.filter(activo=True).exclude(pk=self.pk).update(activo=False)
+            else:
+                AnioAcademico.objects.filter(activo=True).update(activo=False)
+        super().save(*args, **kwargs)
+        
+    def __str__(self):
+        return self.nombre
+
+
+class ConfiguracionTrimestre(models.Model):
+    TRIMESTRE_CHOICES = (
+        ('T1', 'Trimestre 1'),
+        ('T2', 'Trimestre 2'),
+        ('T3', 'Trimestre 3'),
+    )
+    anio = models.ForeignKey(AnioAcademico, on_delete=models.CASCADE, related_name='trimestres')
+    nombre = models.CharField(max_length=2, choices=TRIMESTRE_CHOICES)
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    
+    class Meta:
+        unique_together = ('anio', 'nombre')
+        ordering = ['nombre']
+        
+    def __str__(self):
+        return f"{self.anio.nombre} - {self.nombre}"

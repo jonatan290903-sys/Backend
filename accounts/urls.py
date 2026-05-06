@@ -11,6 +11,9 @@ urlpatterns = [
     path('profile/update/', views.update_profile, name='auth-profile-update'),
     path('profile/change-password/', views.change_password, name='auth-change-password'),
     path('dashboard-stats/', views.dashboard_stats, name='dashboard-stats'),
+    path('config/', views.system_config, name='system-config'),
+    path('anios/', views.anios_list, name='anios-list'),
+    path('anios/<int:pk>/', views.anio_detail, name='anio-detail'),
 
     path('cursos/', views.cursos_list, name='cursos-nivel-list'),
     path('cursos/<int:pk>/', views.curso_detail, name='cursos-nivel-detail'),

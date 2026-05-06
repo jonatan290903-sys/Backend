@@ -175,3 +175,17 @@ class DocenteSerializer(serializers.ModelSerializer):
             instance.user.save()
 
         return super().update(instance, validated_data)
+
+
+class ConfiguracionTrimestreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = __import__('accounts.models', fromlist=['ConfiguracionTrimestre']).ConfiguracionTrimestre
+        fields = '__all__'
+
+
+class AnioAcademicoSerializer(serializers.ModelSerializer):
+    trimestres = ConfiguracionTrimestreSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = __import__('accounts.models', fromlist=['AnioAcademico']).AnioAcademico
+        fields = '__all__'
