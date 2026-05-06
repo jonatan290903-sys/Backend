@@ -12,7 +12,7 @@ from .serializers import PagoSerializer
 @permission_classes([IsAuthenticated])
 def pagos_list(request):
     if request.method == 'GET':
-        qs = Pago.objects.select_related('estudiante__user').all().order_by('-fecha_vencimiento')
+        qs = Pago.objects.select_related('estudiante__user', 'estudiante__curso').all().order_by('-fecha_vencimiento')
         estudiante_id = request.query_params.get('estudiante')
         estado = request.query_params.get('estado')
         concepto = request.query_params.get('concepto')

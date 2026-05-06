@@ -20,25 +20,32 @@ def mis_materias(request):
     from courses.models import Materia
 
     user = request.user
-    if user.role == 'docente':
-        try:
-            docente = Docente.objects.get(user=user)
-            materias = Materia.objects.filter(docente=docente, estado=True).select_related('curso', 'docente__user')
-        except Docente.DoesNotExist:
-            materias = Materia.objects.none()
-    elif user.role == 'estudiante':
-        try:
-            estudiante = Estudiante.objects.get(user=user)
-            if estudiante.curso:
-                materias = Materia.objects.filter(curso=estudiante.curso, estado=True).select_related('curso', 'docente__user')
-            else:
+    cache_key = f"mis_materias_{user.id}"
+    data = cache.get(cache_key)
+    
+    if not data:
+        if user.role == 'docente':
+            try:
+                docente = Docente.objects.get(user=user)
+                materias = Materia.objects.filter(docente=docente, estado=True).select_related('curso', 'docente__user')
+            except Docente.DoesNotExist:
                 materias = Materia.objects.none()
-        except Estudiante.DoesNotExist:
-            materias = Materia.objects.none()
-    else:
-        materias = Materia.objects.filter(estado=True).select_related('curso', 'docente__user')
+        elif user.role == 'estudiante':
+            try:
+                estudiante = Estudiante.objects.get(user=user)
+                if estudiante.curso:
+                    materias = Materia.objects.filter(curso=estudiante.curso, estado=True).select_related('curso', 'docente__user')
+                else:
+                    materias = Materia.objects.none()
+            except Estudiante.DoesNotExist:
+                materias = Materia.objects.none()
+        else:
+            materias = Materia.objects.filter(estado=True).select_related('curso', 'docente__user')
 
-    return Response(MateriaSerializer(materias[:300], many=True).data)
+        data = MateriaSerializer(materias[:300], many=True).data
+        cache.set(cache_key, data, 60 * 15)  # Cache por 15 minutos
+
+    return Response(data)
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -123,6 +130,28 @@ def logout(request):
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dashboard_stats(request):
+    """Devuelve las estadísticas generales del dashboard administrativo."""
+    cache_key = 'dashboard_stats_admin'
+    data = cache.get(cache_key)
+    if not data:
+        from accounts.models import Estudiante, Docente
+        from courses.models import Materia
+        from payments.models import Pago
+        
+        data = {
+            'estudiantes': Estudiante.objects.filter(estado='activo').count(),
+            'docentes': Docente.objects.filter(estado='activo').count(),
+            'materias': Materia.objects.filter(estado=True).count(),
+            'pagos': Pago.objects.count(),
+            'pagosPendientes': Pago.objects.filter(estado__in=['pendiente', 'vencido']).count(),
+        }
+        cache.set(cache_key, data, 600)  # 10 minutes cache
+    return Response(data)
+
+
 # ── Cursos (nivel académico) ──────────────────────────────────────────────────
 
 @api_view(['GET', 'POST'])
@@ -166,11 +195,12 @@ def estudiantes_list(request):
     if request.method == 'GET':
         estado = request.query_params.get('estado')
         curso_id = request.query_params.get('curso')
+        page = request.query_params.get('page', 1)
         
-        # Intentar obtener de cache si no hay filtros específicos
-        if not estado and not curso_id:
-            cache_key = 'estudiantes_list_all'
-            # (Opcional: implementar lógica de cache más granular)
+        cache_key = f'estudiantes_list_{estado}_{curso_id}_{page}'
+        data = cache.get(cache_key)
+        if data:
+            return Response(data)
 
         qs = Estudiante.objects.select_related('user', 'curso').all().order_by('user__last_name', 'user__first_name')
         if estado:
@@ -182,7 +212,9 @@ def estudiantes_list(request):
         paginator.page_size = 50
         result_page = paginator.paginate_queryset(qs, request)
         serializer = EstudianteSerializer(result_page, many=True)
-        return paginator.get_paginated_response(serializer.data)
+        response_data = paginator.get_paginated_response(serializer.data).data
+        cache.set(cache_key, response_data, 600)
+        return Response(response_data)
 
     serializer = EstudianteSerializer(data=request.data)
     if serializer.is_valid():
@@ -217,12 +249,20 @@ def estudiante_detail(request, pk):
 @permission_classes([IsAuthenticated])
 def docentes_list(request):
     if request.method == 'GET':
+        page = request.query_params.get('page', 1)
+        cache_key = f'docentes_list_all_{page}'
+        data = cache.get(cache_key)
+        if data:
+            return Response(data)
+
         qs = Docente.objects.select_related('user').filter(estado='activo').order_by('user__last_name', 'user__first_name')
         paginator = PageNumberPagination()
         paginator.page_size = 50
         result_page = paginator.paginate_queryset(qs, request)
         serializer = DocenteSerializer(result_page, many=True)
-        return paginator.get_paginated_response(serializer.data)
+        response_data = paginator.get_paginated_response(serializer.data).data
+        cache.set(cache_key, response_data, 600)
+        return Response(response_data)
 
     serializer = DocenteSerializer(data=request.data)
     if serializer.is_valid():

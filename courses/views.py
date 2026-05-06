@@ -69,7 +69,7 @@ def materia_estudiantes(request, pk):
         materia = Materia.objects.get(pk=pk)
     except Materia.DoesNotExist:
         return Response({'error': 'Materia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
-    estudiantes = Estudiante.objects.filter(curso=materia.curso, estado='activo').select_related('user')
+    estudiantes = Estudiante.objects.filter(curso=materia.curso, estado='activo').select_related('user', 'curso')
     return Response(EstudianteSerializer(estudiantes, many=True).data)
 
 
@@ -82,7 +82,7 @@ def inscripciones_list(request):
     if err:
         return err
     if request.method == 'GET':
-        qs = Inscripcion.objects.select_related('estudiante__user', 'curso').all()
+        qs = Inscripcion.objects.select_related('estudiante__user', 'estudiante__curso', 'curso').all()
         estudiante_id = request.query_params.get('estudiante')
         curso_id = request.query_params.get('curso')
         estado = request.query_params.get('estado')
@@ -450,6 +450,7 @@ def horario_curso(request, curso_pk):
     horario, _ = HorarioCurso.objects.get_or_create(curso=curso)
 
     if request.method == 'GET':
+        horario = HorarioCurso.objects.prefetch_related('periodos__clases__materia').get(pk=horario.pk)
         return Response(HorarioCursoSerializer(horario).data)
 
     periodos_data = request.data.get('periodos', [])

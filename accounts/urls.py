@@ -10,6 +10,7 @@ urlpatterns = [
     path('profile/', views.get_profile, name='auth-profile'),
     path('profile/update/', views.update_profile, name='auth-profile-update'),
     path('profile/change-password/', views.change_password, name='auth-change-password'),
+    path('dashboard-stats/', views.dashboard_stats, name='dashboard-stats'),
 
     path('cursos/', views.cursos_list, name='cursos-nivel-list'),
     path('cursos/<int:pk>/', views.curso_detail, name='cursos-nivel-detail'),
