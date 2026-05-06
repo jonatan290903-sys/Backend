@@ -79,17 +79,99 @@ class EstudianteSerializer(serializers.ModelSerializer):
     curso_id = serializers.PrimaryKeyRelatedField(
         queryset=Curso.objects.all(), source='curso', write_only=True, required=False, allow_null=True
     )
+    first_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    last_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    email = serializers.EmailField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = Estudiante
-        fields = ('id', 'user', 'numero_expediente', 'documento', 'fecha_nacimiento', 'curso', 'curso_id', 'estado', 'created_at')
+        fields = ('id', 'user', 'numero_expediente', 'documento', 'fecha_nacimiento', 'curso', 'curso_id', 'estado', 'created_at', 'first_name', 'last_name', 'email')
         read_only_fields = ('id', 'created_at')
+
+    def create(self, validated_data):
+        first_name = validated_data.pop('first_name', '')
+        last_name = validated_data.pop('last_name', '')
+        documento = validated_data.get('documento', '')
+        email = validated_data.pop('email', '')
+        if not email:
+            email = f"estudiante_{documento}@sistemage.local"
+            
+        user = User.objects.create(
+            username=documento,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            role='estudiante'
+        )
+        user.set_password(documento)
+        user.save()
+
+        estudiante = Estudiante.objects.create(user=user, **validated_data)
+        return estudiante
+
+    def update(self, instance, validated_data):
+        user_updated = False
+        if 'first_name' in validated_data:
+            instance.user.first_name = validated_data.pop('first_name')
+            user_updated = True
+        if 'last_name' in validated_data:
+            instance.user.last_name = validated_data.pop('last_name')
+            user_updated = True
+        if 'email' in validated_data:
+            instance.user.email = validated_data.pop('email')
+            user_updated = True
+            
+        if user_updated:
+            instance.user.save()
+
+        return super().update(instance, validated_data)
 
 
 class DocenteSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
+    first_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    last_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    email = serializers.EmailField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = Docente
-        fields = ('id', 'user', 'documento', 'especialidad', 'titulo_profesional', 'fecha_contratacion', 'estado')
+        fields = ('id', 'user', 'documento', 'especialidad', 'titulo_profesional', 'fecha_contratacion', 'estado', 'first_name', 'last_name', 'email')
         read_only_fields = ('id',)
+
+    def create(self, validated_data):
+        first_name = validated_data.pop('first_name', '')
+        last_name = validated_data.pop('last_name', '')
+        documento = validated_data.get('documento', '')
+        email = validated_data.pop('email', '')
+        if not email:
+            email = f"docente_{documento}@sistemage.local"
+            
+        user = User.objects.create(
+            username=documento,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            role='docente'
+        )
+        user.set_password(documento)
+        user.save()
+
+        docente = Docente.objects.create(user=user, **validated_data)
+        return docente
+
+    def update(self, instance, validated_data):
+        user_updated = False
+        if 'first_name' in validated_data:
+            instance.user.first_name = validated_data.pop('first_name')
+            user_updated = True
+        if 'last_name' in validated_data:
+            instance.user.last_name = validated_data.pop('last_name')
+            user_updated = True
+        if 'email' in validated_data:
+            instance.user.email = validated_data.pop('email')
+            user_updated = True
+            
+        if user_updated:
+            instance.user.save()
+
+        return super().update(instance, validated_data)
