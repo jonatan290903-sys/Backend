@@ -2,6 +2,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
 from django.core.cache import cache
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
@@ -82,7 +83,7 @@ def inscripciones_list(request):
     if err:
         return err
     if request.method == 'GET':
-        qs = Inscripcion.objects.select_related('estudiante__user', 'estudiante__curso', 'curso').all()
+        qs = Inscripcion.objects.select_related('estudiante__user', 'estudiante__curso', 'curso').all().order_by('-id')
         estudiante_id = request.query_params.get('estudiante')
         curso_id = request.query_params.get('curso')
         estado = request.query_params.get('estado')
@@ -92,7 +93,12 @@ def inscripciones_list(request):
             qs = qs.filter(curso_id=curso_id)
         if estado:
             qs = qs.filter(estado=estado)
-        return Response(InscripcionSerializer(qs, many=True).data)
+        
+        paginator = PageNumberPagination()
+        paginator.page_size = 50
+        result_page = paginator.paginate_queryset(qs, request)
+        serializer = InscripcionSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
     serializer = InscripcionSerializer(data=request.data)
     if serializer.is_valid():
