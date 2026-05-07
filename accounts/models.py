@@ -16,6 +16,7 @@ class User(AbstractUser):
     phone = models.CharField(max_length=20, blank=True)
     address = models.TextField(blank=True)
     profile_image = models.ImageField(upload_to='profiles/', null=True, blank=True)
+    must_change_password = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

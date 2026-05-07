@@ -114,6 +114,7 @@ def change_password(request):
         if not user.check_password(serializer.validated_data['old_password']):
             return Response({'old_password': 'Contraseña incorrecta.'}, status=status.HTTP_400_BAD_REQUEST)
         user.set_password(serializer.validated_data['new_password'])
+        user.must_change_password = False
         user.save()
         return Response({'message': 'Contraseña actualizada exitosamente.'})
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

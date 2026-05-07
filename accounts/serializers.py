@@ -6,7 +6,7 @@ from .models import User, Estudiante, Docente, Curso
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'email', 'username', 'first_name', 'last_name', 'role', 'phone', 'address', 'profile_image', 'created_at')
+        fields = ('id', 'email', 'username', 'first_name', 'last_name', 'role', 'phone', 'address', 'profile_image', 'must_change_password', 'created_at')
         read_only_fields = ('id', 'created_at')
 
 
@@ -101,7 +101,8 @@ class EstudianteSerializer(serializers.ModelSerializer):
             email=email,
             first_name=first_name,
             last_name=last_name,
-            role='estudiante'
+            role='estudiante',
+            must_change_password=True
         )
         user.set_password(documento)
         user.save()
@@ -151,7 +152,8 @@ class DocenteSerializer(serializers.ModelSerializer):
             email=email,
             first_name=first_name,
             last_name=last_name,
-            role='docente'
+            role='docente',
+            must_change_password=True
         )
         user.set_password(documento)
         user.save()
