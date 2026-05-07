@@ -66,28 +66,19 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-DB_ENGINE = os.getenv('DB_ENGINE', 'django.db.backends.sqlite3')
-if DB_ENGINE == 'django.db.backends.sqlite3':
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'postgres',
+        'USER': 'postgres.frfrvmwkgyszdkfllcys',
+        'PASSWORD': 'uVm8Lww8v3lRrakk',
+        'HOST': 'aws-1-sa-east-1.pooler.supabase.com',
+        'PORT': '6543',
+        'OPTIONS': {
+            'sslmode': 'require',
+        },
     }
-else:
-    import dj_database_url
-    # Increased conn_max_age to 600 for connection pooling
-    db_from_env = dj_database_url.config(conn_max_age=600, conn_health_checks=True)
-    if db_from_env:
-        DATABASES = {'default': db_from_env}
-    else:
-        # Fallback for debugging if DATABASE_URL is missing
-        DATABASES = {
-            'default': {
-                'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': BASE_DIR / 'db.sqlite3',
-            }
-        }
+}
 
 # Cache configuration using Redis with fallback to local memory
 CACHES = {
