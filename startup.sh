@@ -27,4 +27,5 @@ exec gunicorn core.wsgi:application \
     --bind 0.0.0.0:${PORT:-8000} \
     --workers 3 \
     --timeout 90 \
-    --log-level info
+    --log-level info \
+    --access-logfile -

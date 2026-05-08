@@ -12,7 +12,9 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-m#wn7ut_3ay7tcx4pzcuq))#)3
 
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,.railway.app').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,.railway.app,.up.railway.app').split(',')
+if '*' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('*') # Temporary for debugging 502
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -87,6 +89,11 @@ if not DATABASES['default']:
             'sslmode': 'require',
         },
     }
+else:
+    # Ensure SSL is enabled even when using DATABASE_URL
+    if 'postgresql' in DATABASES['default']['ENGINE']:
+        DATABASES['default'].setdefault('OPTIONS', {})
+        DATABASES['default']['OPTIONS']['sslmode'] = 'require'
 
 # Cache configuration using Redis with fallback to local memory
 CACHES = {
