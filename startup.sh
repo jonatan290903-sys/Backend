@@ -22,10 +22,10 @@ else
 fi
 
 # 4. Iniciar Gunicorn
-echo "Iniciando Gunicorn..."
+PORT=${PORT:-8000}
+echo "Iniciando Gunicorn en el puerto $PORT..."
 exec gunicorn core.wsgi:application \
-    --bind 0.0.0.0:${PORT:-8000} \
+    --bind 0.0.0.0:$PORT \
     --workers 3 \
     --timeout 90 \
-    --log-level info \
-    --access-logfile -
+    --log-level info

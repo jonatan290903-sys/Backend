@@ -1,5 +1,4 @@
 import os
-import dj_database_url
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
@@ -12,9 +11,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-m#wn7ut_3ay7tcx4pzcuq))#)3
 
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,.railway.app,.up.railway.app').split(',')
-if '*' not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append('*') # Temporary for debugging 502
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,.railway.app').split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -69,31 +66,18 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
+import dj_database_url
+
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.getenv('DATABASE_URL'),
+        default='sqlite:///' + str(BASE_DIR / 'db.sqlite3'),
         conn_max_age=600,
-        conn_health_checks=True,
+        ssl_require=False
     )
 }
 
-if not DATABASES['default']:
-    DATABASES['default'] = {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'postgres'),
-        'USER': os.getenv('DB_USER', 'postgres.frfrvmwkgyszdkfllcys'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'uVm8Lww8v3lRrakk'),
-        'HOST': os.getenv('DB_HOST', 'aws-1-sa-east-1.pooler.supabase.com'),
-        'PORT': os.getenv('DB_PORT', '6543'),
-        'OPTIONS': {
-            'sslmode': 'require',
-        },
-    }
-else:
-    # Ensure SSL is enabled even when using DATABASE_URL
-    if 'postgresql' in DATABASES['default']['ENGINE']:
-        DATABASES['default'].setdefault('OPTIONS', {})
-        DATABASES['default']['OPTIONS']['sslmode'] = 'require'
+# Si estamos en Railway o tenemos la URL de Postgres, el default arriba será sobreescrito.
+# Pero para el sandbox, usaremos SQLite si no hay DATABASE_URL.
 
 # Cache configuration using Redis with fallback to local memory
 CACHES = {
@@ -115,7 +99,6 @@ CSRF_TRUSTED_ORIGINS = [
     'https://*.railway.app',
     'https://*.up.railway.app',
     'https://sistema-gestion-escolar.vercel.app',
-    'https://sistema-gestion-escolar-seven.vercel.app',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -142,7 +125,7 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = os.getenv(
     'CORS_ALLOWED_ORIGINS',
-    'http://localhost:3000,http://localhost:8000,https://sistema-gestion-escolar.vercel.app,https://sistema-gestion-escolar-seven.vercel.app'
+    'http://localhost:3000,http://localhost:8000,https://sistema-gestion-escolar.vercel.app'
 ).split(',')
 
 # Enable CORS for all origins if you prefer, or rely on the specific list above

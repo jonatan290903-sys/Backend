@@ -5,6 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.cache import cache
+from django.views.decorators.cache import cache_page
 from .models import User, Curso, Estudiante, Docente
 from .serializers import (
     RegisterSerializer, LoginSerializer, UserSerializer,
@@ -325,6 +326,7 @@ def docente_detail(request, pk):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@cache_page(60 * 15)
 def system_config(request):
     """Devuelve la configuración global (Año activo y trimestres)."""
     from accounts.models import AnioAcademico
@@ -349,12 +351,13 @@ def system_config(request):
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
+@cache_page(60 * 15)
 def anios_list(request):
     from accounts.models import AnioAcademico, ConfiguracionTrimestre
     from accounts.serializers import AnioAcademicoSerializer
-    
+
     if request.method == 'GET':
-        qs = AnioAcademico.objects.all()
+        qs = AnioAcademico.objects.prefetch_related('trimestres').all()
         return Response(AnioAcademicoSerializer(qs, many=True).data)
         
     serializer = AnioAcademicoSerializer(data=request.data)

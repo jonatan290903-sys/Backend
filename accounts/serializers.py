@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import User, Estudiante, Docente, Curso
+from .models import User, Estudiante, Docente, Curso, AnioAcademico, ConfiguracionTrimestre
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -181,13 +181,13 @@ class DocenteSerializer(serializers.ModelSerializer):
 
 class ConfiguracionTrimestreSerializer(serializers.ModelSerializer):
     class Meta:
-        model = __import__('accounts.models', fromlist=['ConfiguracionTrimestre']).ConfiguracionTrimestre
+        model = ConfiguracionTrimestre
         fields = '__all__'
 
 
 class AnioAcademicoSerializer(serializers.ModelSerializer):
     trimestres = ConfiguracionTrimestreSerializer(many=True, read_only=True)
-    
+
     class Meta:
-        model = __import__('accounts.models', fromlist=['AnioAcademico']).AnioAcademico
+        model = AnioAcademico
         fields = '__all__'
