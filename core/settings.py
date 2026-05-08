@@ -1,4 +1,5 @@
 import os
+import dj_database_url
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
@@ -67,18 +68,25 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 
 DATABASES = {
-    'default': {
+    'default': dj_database_url.config(
+        default=os.getenv('DATABASE_URL'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
+}
+
+if not DATABASES['default']:
+    DATABASES['default'] = {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres.frfrvmwkgyszdkfllcys',
-        'PASSWORD': 'uVm8Lww8v3lRrakk',
-        'HOST': 'aws-1-sa-east-1.pooler.supabase.com',
-        'PORT': '6543',
+        'NAME': os.getenv('DB_NAME', 'postgres'),
+        'USER': os.getenv('DB_USER', 'postgres.frfrvmwkgyszdkfllcys'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'uVm8Lww8v3lRrakk'),
+        'HOST': os.getenv('DB_HOST', 'aws-1-sa-east-1.pooler.supabase.com'),
+        'PORT': os.getenv('DB_PORT', '6543'),
         'OPTIONS': {
             'sslmode': 'require',
         },
     }
-}
 
 # Cache configuration using Redis with fallback to local memory
 CACHES = {
@@ -100,6 +108,7 @@ CSRF_TRUSTED_ORIGINS = [
     'https://*.railway.app',
     'https://*.up.railway.app',
     'https://sistema-gestion-escolar.vercel.app',
+    'https://sistema-gestion-escolar-seven.vercel.app',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -126,7 +135,7 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = os.getenv(
     'CORS_ALLOWED_ORIGINS',
-    'http://localhost:3000,http://localhost:8000,https://sistema-gestion-escolar.vercel.app'
+    'http://localhost:3000,http://localhost:8000,https://sistema-gestion-escolar.vercel.app,https://sistema-gestion-escolar-seven.vercel.app'
 ).split(',')
 
 # Enable CORS for all origins if you prefer, or rely on the specific list above
