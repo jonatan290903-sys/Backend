@@ -98,7 +98,7 @@ CACHES = {
 CSRF_TRUSTED_ORIGINS = [
     'https://*.railway.app',
     'https://*.up.railway.app',
-    'https://sistema-gestion-escolar.vercel.app',
+    'https://*.vercel.app',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -125,7 +125,7 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = os.getenv(
     'CORS_ALLOWED_ORIGINS',
-    'http://localhost:3000,http://localhost:8000,https://sistema-gestion-escolar.vercel.app'
+    'http://localhost:3000,http://localhost:8000,https://sistema-gestion-escolar-seven.vercel.app'
 ).split(',')
 
 # Enable CORS for all origins if you prefer, or rely on the specific list above
