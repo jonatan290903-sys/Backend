@@ -21,7 +21,11 @@ else
     echo "Saltando sincronización de secuencias (FIX_SEQUENCES no es true)"
 fi
 
-# 4. Iniciar Gunicorn
+# 4. Recolectar archivos estáticos
+echo "Recolectando archivos estáticos..."
+python manage.py collectstatic --noinput
+
+# 5. Iniciar Gunicorn
 PORT=${PORT:-8000}
 echo "Iniciando Gunicorn en el puerto $PORT..."
 exec gunicorn core.wsgi:application \
